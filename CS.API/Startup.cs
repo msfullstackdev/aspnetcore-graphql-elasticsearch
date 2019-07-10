@@ -2,7 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using CS.API.Models;
 using CS.DependencyInjection;
+using GraphiQl;
+using GraphQL;
+using GraphQL.Types;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -32,13 +36,13 @@ namespace CS.API
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             Config.UpdateServiceCollection(services,Configuration);
 
-           
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new Info { Title = "Users API", Version = "v1" });
-            });
-
             services.AddApplicationInsightsTelemetry(Configuration);
+            services.AddSingleton<IDocumentExecuter, DocumentExecuter>();
+            services.AddSingleton<UserQuery>();
+            services.AddSingleton<UserType>();
+            var sp = services.BuildServiceProvider();
+            services.AddSingleton<ISchema>(new UserSchema(new FuncDependencyResolver(type => sp.GetService(type))));
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -53,18 +57,14 @@ namespace CS.API
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-         
+
+            app.UseGraphiQl("/graphql");
+
             app.UseCors(builder => builder.AllowAnyOrigin()
             //WithOrigins("http://localhost:3000/")
                               .AllowAnyMethod()
                               .AllowAnyHeader());
 
-            app.UseSwagger();
-
-            app.UseSwaggerUI(c =>
-            {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Users API V1");
-            });
             app.UseHttpsRedirection();
             app.UseMvc();
         }
